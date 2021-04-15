@@ -13,6 +13,7 @@ public class Controller {
     private ServerSocket socket;
 
     private ArrayList<ClientConnection> clients;
+    private ArrayList<DstoreConnection> dstores;
 
     public Controller(Integer cport, Integer R, Integer timeout, Integer rebalance_period) throws Exception {
         this.cport = cport;
@@ -23,11 +24,18 @@ public class Controller {
         this.socket = new ServerSocket(this.cport);
 
         this.clients = new ArrayList<ClientConnection>();
+        this.dstores = new ArrayList<DstoreConnection>();
     }
 
     public void addClient(ClientConnection c) {
         System.out.println("(i) New client detected");
         this.clients.add(c);
+        new Thread(c).start();
+    }
+
+    public void addDstore(DstoreConnection c) {
+        System.out.println("(i) New dstore detected");
+        this.dstores.add(c);
         new Thread(c).start();
     }
 

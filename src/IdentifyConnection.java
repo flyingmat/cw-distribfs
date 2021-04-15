@@ -23,7 +23,7 @@ public class IdentifyConnection implements Runnable {
                 if (ws.length > 0) {
                     if (ws[0].equals("JOIN")) {
                         Integer port = Integer.parseInt(ws[1]);
-                        //this.controller.addDstore(new DstoreConnection(this.socket, port));
+                        this.controller.addDstore(new DstoreConnection(this.socket, port));
                     } else {
                         this.controller.addClient(new ClientConnection(this.socket, msg));
                     }

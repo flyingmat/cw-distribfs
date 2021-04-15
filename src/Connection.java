@@ -26,4 +26,19 @@ public abstract class Connection implements Runnable {
     }
 
     protected abstract void processMessage(String msg);
+
+    @Override
+    public void run() {
+        try {
+            String msg;
+            while ((msg = await()) != null) {
+                processMessage(msg);
+            }
+
+            this.ins.close();
+        } catch (Exception e) {
+            // when client disconnects ?
+            e.printStackTrace();
+        }
+    }
 }
