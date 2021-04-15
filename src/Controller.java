@@ -1,3 +1,4 @@
+import java.util.*;
 import java.io.*;
 import java.net.*;
 import java.lang.NumberFormatException;
@@ -11,38 +12,23 @@ public class Controller {
 
     private ServerSocket socket;
 
+    private ArrayList<ClientConnection> clients;
+
     public Controller(Integer cport, Integer R, Integer timeout, Integer rebalance_period) throws Exception {
         this.cport = cport;
         this.R = R;
         this.timeout = timeout;
         this.rebalance_period = rebalance_period;
+
         this.socket = new ServerSocket(this.cport);
+
+        this.clients = new ArrayList<ClientConnection>();
     }
 
-    class ClientConnection implements Runnable {
-        private Socket client;
-
-        public ClientConnection(Socket client) {
-            this.client = client;
-        }
-
-        @Override
-        public void run() {
-            try {
-                BufferedReader in = new BufferedReader(new InputStreamReader(this.client.getInputStream()));
-                String line;
-                while ((line = in.readLine()) != null) {
-                    System.out.println(line);
-                }
-                client.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    public void process(Socket client) {
-        new Thread(new ClientConnection(client)).start();
+    public void addClient(ClientConnection c) {
+        System.out.println("(i) New client detected");
+        this.clients.add(c);
+        new Thread(c).start();
     }
 
     public Socket await() throws Exception {
@@ -79,7 +65,8 @@ public class Controller {
 
         while (true) {
             try {
-                controller.process(controller.await());
+                new Thread(new IdentifyConnection(controller, controller.await())).start();
+                System.out.println("(i) New connection");
             } catch (Exception e) {
                 System.out.println("Error: unable to accept client connection\n    (!) " + e.getMessage());
             }

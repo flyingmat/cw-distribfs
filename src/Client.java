@@ -8,13 +8,20 @@ public class Client {
     private Integer timeout;
 
     private Socket socket;
+    private BufferedReader in;
     private PrintWriter out;
 
     public Client(Integer cport, Integer timeout) throws Exception {
         this.cport = cport;
         this.timeout = timeout;
+
         this.socket = new Socket("127.0.0.1", this.cport);
+        this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         this.out = new PrintWriter(socket.getOutputStream());
+    }
+
+    public String await() throws Exception {
+        return this.in.readLine();
     }
 
     public void dispatch(String msg) {
@@ -42,7 +49,7 @@ public class Client {
         try {
             client = new Client(cport, timeout);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("Error: connection failed");
             return;
         }
 
@@ -50,6 +57,11 @@ public class Client {
         String line;
         while (!(line = input.nextLine()).equals("QUIT")) {
             client.dispatch(line);
+            try {
+                System.out.println("Received: " + client.await());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 }
