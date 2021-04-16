@@ -3,6 +3,7 @@ import java.net.*;
 
 public class Controller extends TCPServer {
 
+    private Integer R;
     private Integer timeout;
 
     private ArrayList<ClientConnection> clients;
@@ -10,6 +11,7 @@ public class Controller extends TCPServer {
 
     public Controller(Integer cport, Integer R, Integer timeout, Integer rebalance_period) throws Exception {
         super(cport);
+        this.R = R;
         this.timeout = timeout;
         this.clients = new ArrayList<ClientConnection>();
         this.dstores = new ArrayList<DstoreConnection>();
@@ -38,13 +40,43 @@ public class Controller extends TCPServer {
         new Thread(c).start();
     }
 
+    private Integer storageSize(List<String> list) {
+        return list.stream().map(s -> {
+            try {
+                return Integer.parseInt(s.split(" ")[1]);
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }).reduce(0, Integer::sum);
+    }
+
     public boolean store(String filename, Integer file_size) {
+        List<List<String>> lists = new ArrayList<List<String>>();
+
         for (DstoreConnection dstore : this.dstores) {
-            ///dstore.dispatch("LIST");
             List<String> list = dstore.getList();
-            for (String s : list)
-                System.out.println(" list::" + s);
+            if (list != null) {
+                lists.add(list);
+                for (String s : list)
+                    System.out.println(" list::" + s);
+            } else {
+                // no ack, no list returned, idk
+            }
         }
+
+        if (lists.size() < this.R) {
+            // log, not enough dstores, but go ahead
+        }
+
+        Collections.sort(
+            lists,
+            (l1, l2) -> Integer.compare(storageSize(l1), storageSize(l2))
+        );
+
+        for (List<String> l : lists) {
+            System.out.println(storageSize(l));
+        }
+
         return true;
     }
 

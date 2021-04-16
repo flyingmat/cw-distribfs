@@ -61,13 +61,12 @@ public class DstoreConnection extends Connection {
 
     public List<String> getList() {
         hold();
-        List<String> list;
+        List<String> list = null;
         String ack = waitForAck("LIST");
         if (ack != null) {
             list = linesUntil("LIST END");
         } else {
             // log
-            list = new ArrayList<String>();
         }
 
         resume();

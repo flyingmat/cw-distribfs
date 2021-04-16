@@ -1,15 +1,18 @@
 import java.util.*;
+import java.util.stream.*;
 import java.io.*;
 import java.net.*;
 
 public class Dstore extends TCPServer {
 
+    private String file_folder;
     private TCPClient client;
 
-    private List<String> files;
+    private Map<String,Integer> files;
 
     public Dstore(Integer port, Integer cport, Integer timeout, String file_folder) throws Exception {
         super(port);
+        this.file_folder = file_folder;
         this.client = new TCPClient("127.0.0.1", cport);
 
         init();
@@ -32,14 +35,21 @@ public class Dstore extends TCPServer {
     }
 
     private void init() {
-        this.files = new ArrayList<String>();
+        this.files = new HashMap<String,Integer>();
         // testing
-        files.add("file1.csv");
-        files.add("aaa.txt");
+        files.put("file1.csv", 123);
+        files.put("aaa.txt", 987);
+        if (this.file_folder.equals("abab")) {
+            files.put("loool.java", 3675);
+        }
     }
 
     public String list() {
-        return "LIST BEGIN\n" + String.join("\n", this.files) + "\nLIST END";
+        return "LIST BEGIN\n" +
+            String.join(
+                "\n",
+                this.files.keySet().stream().map(s -> s + " " + this.files.get(s)).collect(Collectors.toList())
+            ) + "\nLIST END";
     }
 
     public static void main(String[] args) {
