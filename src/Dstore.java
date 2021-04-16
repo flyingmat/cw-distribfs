@@ -2,54 +2,44 @@ import java.util.*;
 import java.io.*;
 import java.net.*;
 
-public class Dstore {
+public class Dstore extends TCPServer {
 
-    private Integer port;
-    private Integer cport;
-    private Integer timeout;
-    private String file_folder;
+    private TCPClient client;
 
-    private ServerSocket ins;
-    private Socket outs;
-    private BufferedReader in;
-    private PrintWriter out;
+    private List<String> files;
 
     public Dstore(Integer port, Integer cport, Integer timeout, String file_folder) throws Exception {
-        this.port = port;
-        this.cport = cport;
-        this.timeout = timeout;
-        this.file_folder = file_folder;
+        super(port);
+        this.client = new TCPClient("127.0.0.1", cport);
 
-        this.ins = new ServerSocket(this.port);
-        this.outs = new Socket("127.0.0.1", this.cport);
-        this.out = new PrintWriter(outs.getOutputStream());
+        init();
 
-        start();
-    }
-
-    public String await() throws Exception {
-        return this.in.readLine();
-    }
-
-    public void dispatch(String msg) {
-        this.out.println(msg);
-        this.out.flush();
-    }
-
-    private void start() {
         new Thread(new Runnable() {
             public void run() {
-                while (true) {
-                    try {
-                        ins.accept();
-                    } catch (Exception e) {
-                        System.out.println("Error: unable to accept controller connection\n    (!) " + e.getMessage());
-                    }
-                }
+                start();
             }
         }).start();
+        this.client.dispatch("JOIN " + port);
+    }
 
-        dispatch("JOIN " + port);
+    @Override
+    protected void onAccept(Socket socket) {
+        try {
+            new Thread(new DataConnection(this, socket, this.client.getSocketOut())).start();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void init() {
+        this.files = new ArrayList<String>();
+        // testing
+        files.add("file1.csv");
+        files.add("aaa.txt");
+    }
+
+    public String list() {
+        return "LIST BEGIN\n" + String.join("\n", this.files) + "\nLIST END";
     }
 
     public static void main(String[] args) {
@@ -78,5 +68,4 @@ public class Dstore {
             return;
         }
     }
-
 }

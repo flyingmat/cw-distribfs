@@ -1,30 +1,29 @@
 import java.util.*;
-import java.io.*;
 import java.net.*;
-import java.lang.NumberFormatException;
 
-public class Controller {
+public class Controller extends TCPServer {
 
-    private Integer cport;
-    private Integer R;
     private Integer timeout;
-    private Integer rebalance_period;
-
-    private ServerSocket socket;
 
     private ArrayList<ClientConnection> clients;
     private ArrayList<DstoreConnection> dstores;
 
     public Controller(Integer cport, Integer R, Integer timeout, Integer rebalance_period) throws Exception {
-        this.cport = cport;
-        this.R = R;
+        super(cport);
         this.timeout = timeout;
-        this.rebalance_period = rebalance_period;
-
-        this.socket = new ServerSocket(this.cport);
-
         this.clients = new ArrayList<ClientConnection>();
         this.dstores = new ArrayList<DstoreConnection>();
+
+        new Thread(new Runnable() {
+            public void run() {
+                start();
+            }
+        }).start();
+    }
+
+    @Override
+    protected void onAccept(Socket socket) {
+        new Thread(new IdentifyConnection(this, socket)).start();
     }
 
     public void addClient(ClientConnection c) {
@@ -39,8 +38,18 @@ public class Controller {
         new Thread(c).start();
     }
 
-    public Socket await() throws Exception {
-        return socket.accept();
+    public boolean store(String filename, Integer file_size) {
+        for (DstoreConnection dstore : this.dstores) {
+            ///dstore.dispatch("LIST");
+            List<String> list = dstore.getList();
+            for (String s : list)
+                System.out.println(" list::" + s);
+        }
+        return true;
+    }
+
+    public Integer getTimeout() {
+        return this.timeout;
     }
 
     public static void main(String[] args) {
@@ -69,15 +78,6 @@ public class Controller {
         } catch (Exception e) {
             System.out.println("Error: socket creation failed\n    (!) " + e.getMessage());
             return;
-        }
-
-        while (true) {
-            try {
-                new Thread(new IdentifyConnection(controller, controller.await())).start();
-                System.out.println("(i) New connection");
-            } catch (Exception e) {
-                System.out.println("Error: unable to accept client connection\n    (!) " + e.getMessage());
-            }
         }
     }
 }

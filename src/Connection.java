@@ -1,41 +1,38 @@
+import java.util.*;
 import java.io.*;
 import java.net.*;
 
-public abstract class Connection implements Runnable {
+public abstract class Connection extends TCPClient implements Runnable {
 
-    protected Socket ins;
-    protected Socket outs;
-
-    private BufferedReader in;
-    private PrintWriter out;
+    protected boolean consume = true;
 
     protected Connection(Socket ins, Socket outs) throws Exception {
-        this.ins = ins;
-        this.outs = outs;
-        this.in = new BufferedReader(new InputStreamReader(ins.getInputStream()));
-        this.out = new PrintWriter(outs.getOutputStream());
-    }
-
-    protected String await() throws Exception {
-        return this.in.readLine();
-    }
-
-    protected void dispatch(String msg) {
-        this.out.println(msg);
-        this.out.flush();
+        super(ins, outs);
     }
 
     protected abstract void processMessage(String msg);
 
+    protected void hold() {
+        this.consume = false;
+    }
+
+    protected void resume() {
+        this.consume = true;
+    }
+
     @Override
     public void run() {
         try {
-            String msg;
-            while ((msg = await()) != null) {
-                processMessage(msg);
-            }
+            String msg = "";
+            do {
+                if (this.consume && super.in.ready()) {
+                    msg = await();
+                    processMessage(msg);
+                }
+                Thread.sleep(100);
+            } while (msg != null);
 
-            this.ins.close();
+            close();
         } catch (Exception e) {
             // when client disconnects ?
             e.printStackTrace();
