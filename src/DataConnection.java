@@ -27,7 +27,7 @@ public class DataConnection extends Connection {
                     if (ws.length == 3) {
                         try {
                             Integer fs = Integer.parseInt(ws[2]);
-                            File outputFile = new File(ws[1]);
+                            File outputFile = new File(this.dstore.getFileFolder() + "/" + ws[1]);
 
                             hold();
                             System.out.println("Sending ACK..");
@@ -36,11 +36,11 @@ public class DataConnection extends Connection {
 
                             // receive file contents
                             byte[] contents = ins.getInputStream().readNBytes(fs);
-                            FileOutputStream outf = new FileOutputStream("dstore_" + outputFile);
+                            FileOutputStream outf = new FileOutputStream(outputFile);
                             outf.write(contents);
 
-                            this.dstore.files.put(ws[1], fs);
-                            this.dstore.controller.dispatch("STORE_ACK " + ws[1]);
+                            this.dstore.store(ws[1]);
+                            this.dstore.getController().dispatch("STORE_ACK " + ws[1]);
 
                             resume();
                         } catch (NumberFormatException e) {

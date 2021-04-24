@@ -1,15 +1,16 @@
 import java.util.*;
-import java.util.stream.*;
 import java.io.*;
 import java.net.*;
 
 public class Dstore extends TCPServer {
 
-    private String file_folder;
-    private TCPClient client;
+    private final Object lock = new Object();
 
-    public DataConnection controller;
-    public Map<String,Integer> files;
+    private final String file_folder;
+    private final TCPClient client;
+
+    private DataConnection controller;
+    private volatile List<String> files;
 
     public Dstore(Integer port, Integer cport, Integer timeout, String file_folder) throws Exception {
         super(port);
@@ -26,7 +27,7 @@ public class Dstore extends TCPServer {
                     new Thread(Dstore.this.controller).start();
                     start();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    System.out.println("Error: unable to accept controller connection\n    (!) " + e.getMessage());
                 }
             }
         }).start();
@@ -43,23 +44,30 @@ public class Dstore extends TCPServer {
     }
 
     private void init() {
-        this.files = new HashMap<String,Integer>();
-        // testing
-        files.put("file1.csv", 123);
-        files.put("aaa.txt", 987);
-        if (this.file_folder.equals("abab")) {
-            files.put("loool.java", 3675);
-        } else if (this.file_folder.equals("eee")) {
-            files.put("xd.class", 111);
+        this.files = new ArrayList<String>();
+        File folder = new File(this.file_folder);
+        if (!folder.isDirectory()) {
+            folder.mkdirs();
+        } else {
+            for (File f : folder.listFiles())
+                f.delete();
         }
     }
 
-    public String list() {
-        return "LIST BEGIN\n" +
-            String.join(
-                "\n",
-                this.files.keySet().stream().map(s -> s + " " + this.files.get(s)).collect(Collectors.toList())
-            ) + "\nLIST END";
+    public String list() { synchronized(this.lock) {
+        return "LIST BEGIN\n" + String.join("\n", this.files) + "\nLIST END";
+    }}
+
+    public void store(String filename) { synchronized(this.lock) {
+        this.files.add(filename);
+    }}
+
+    public String getFileFolder() {
+        return this.file_folder;
+    }
+
+    public DataConnection getController() {
+        return this.controller;
     }
 
     public static void main(String[] args) {

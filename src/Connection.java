@@ -4,7 +4,7 @@ import java.net.*;
 
 public abstract class Connection extends TCPClient implements Runnable {
 
-    protected boolean consume = true;
+    private boolean consume = true;
 
     protected Connection(Socket ins, Socket outs) throws Exception {
         super(ins, outs);

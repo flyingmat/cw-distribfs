@@ -3,9 +3,9 @@ import java.net.*;
 
 public class DstoreConnection extends Connection {
 
-    private Controller controller;
-    private Integer port;
-    private String fmsg = "";
+    private final Controller controller;
+    private final Integer port;
+    private final String fmsg;
 
     public DstoreConnection(Controller controller, Socket ins, Integer port, String msg) throws Exception {
         super(ins, new Socket(ins.getInetAddress(), port));
@@ -59,7 +59,8 @@ public class DstoreConnection extends Connection {
 
     @Override
     public void run() {
-        processMessage(this.fmsg);
+        if (this.fmsg != null)
+            processMessage(this.fmsg);
         super.run();
     }
 }

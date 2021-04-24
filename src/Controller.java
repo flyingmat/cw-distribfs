@@ -1,14 +1,19 @@
 import java.util.*;
-import java.lang.Math.*;
 import java.net.*;
 
 public class Controller extends TCPServer {
 
-    private Integer R;
-    private Integer timeout;
+    private final Object dstoreLock = new Object();
+    private final Object clientLock = new Object();
+    private final Object storeLock = new Object();
+    private final Object indexLock = new Object();
 
-    private ArrayList<ClientConnection> clients;
-    private ArrayList<DstoreConnection> dstores;
+    private final Integer R;
+    private final Integer timeout;
+
+    private volatile List<ClientConnection> clients;
+    private volatile List<DstoreConnection> dstores;
+    private volatile Map<String, List<DstoreConnection>> index;
 
     public Controller(Integer cport, Integer R, Integer timeout, Integer rebalance_period) throws Exception {
         super(cport);
@@ -16,6 +21,7 @@ public class Controller extends TCPServer {
         this.timeout = timeout;
         this.clients = new ArrayList<ClientConnection>();
         this.dstores = new ArrayList<DstoreConnection>();
+        this.index = new HashMap<String, List<DstoreConnection>>();
 
         new Thread(new Runnable() {
             public void run() {
@@ -30,88 +36,93 @@ public class Controller extends TCPServer {
     }
 
     public void addClient(ClientConnection c) {
-        System.out.println("(i) New client detected");
-        this.clients.add(c);
+        synchronized(this.clientLock) {
+            System.out.println("(i) New client detected");
+            this.clients.add(c);
+        }
         new Thread(c).start();
     }
 
     public void addDstore(DstoreConnection c) {
-        System.out.println("(i) New dstore detected");
-        this.dstores.add(c);
+        synchronized(this.dstoreLock) {
+            System.out.println("(i) New dstore detected");
+            this.dstores.add(c);
+        }
         new Thread(c).start();
     }
 
-    private Integer storageSize(List<String> list) {
-        return list.stream().map(s -> {
-            try {
-                return Integer.parseInt(s.split(" ")[1]);
-            } catch (NumberFormatException e) {
-                return 0;
+    public void store(ClientConnection c, String filename, Integer file_size) {
+        synchronized(this.indexLock) {
+            if (this.index.containsKey(filename)) {
+                // file already exists
+                c.dispatch("ERROR_FILE_ALREADY_EXISTS");
+                return;
+            } else {
+                this.index.put(filename, new ArrayList<DstoreConnection>());
             }
-        }).reduce(0, Integer::sum);
-    }
+        }
 
-    public boolean store(ClientConnection c, String filename, Integer file_size) {
-        List<List<String>> lists = new ArrayList<List<String>>();
-        Map<List<String>, DstoreConnection> ld = new HashMap<>();
+        Map<DstoreConnection, Integer> lists = new HashMap<>();
 
         // get dstores' file lists
-        for (DstoreConnection dstore : this.dstores) {
-            List<String> list = dstore.getList();
-            if (list != null) {
-                lists.add(list);
-                ld.put(list, dstore);
+        synchronized(this.dstoreLock) {
+            if (this.dstores.size() < this.R) {
+                // log, not enough dstores, STOP HERE
+                System.out.println("(!) Less than R dstores connected");
+                c.dispatch("ERROR_NOT_ENOUGH_DSTORES");
+                return;
+            }
 
-                for (String s : list)
-                    System.out.println(" list::" + s);
-            } else {
-                // no ack, no list returned, idk
+            for (DstoreConnection dstore : this.dstores) {
+                List<String> list = dstore.getList();
+                if (list != null) {
+                    lists.put(dstore, list.size());
+                    System.out.println(Arrays.toString(list.toArray()));
+                } else {
+                    // no ack, no list returned, idk
+                }
             }
         }
 
         if (lists.size() < this.R) {
-            // log, not enough dstores, STOP HERE
-            System.out.println("(!) Less than R dstores connected");
-            return false;
+            // log, not enough lists received, continue
         }
 
-        // sort the file lists, lower total size first
-        Collections.sort(
-            lists,
-            (l1, l2) -> Integer.compare(storageSize(l1), storageSize(l2))
-        );
-
-        for (List<String> l : lists) {
-            System.out.println(storageSize(l) + " " + ld.get(l).getPort());
-        }
-
-        List<List<String>> rs = new ArrayList<>();
+        List<DstoreConnection> ds = new ArrayList<>(lists.keySet());
+        Collections.sort(ds, (d1, d2) -> Integer.compare(lists.get(d1), lists.get(d2)));
+        ds.subList(this.R, ds.size()).clear();
 
         // take R lowest size lists and their dstores' ports
         String r = "STORE_TO";
         for (int i = 0; i < this.R; i++) {
-            r += " " + ld.get(lists.get(i)).getPort();
-            rs.add(lists.get(i));
+            r += " " + ds.get(i).getPort();
         }
 
-        for (List<String> l : rs) {
-            ld.get(l).hold();
-        }
-
-        System.out.println(r);
-        c.dispatch(r);
-
-        for (List<String> l : rs) {
-            // each dstore has timeout or should be total ???
-            String ack = ld.get(l).await(this.timeout);
-            if (ack == null || !ack.equals("STORE_ACK " + filename)) {
-                // log
+        synchronized(this.storeLock) {
+            for (DstoreConnection dstore : ds) {
+                dstore.hold();
             }
-            ld.get(l).resume();
+
+            System.out.println(r);
+            c.dispatch(r);
+
+            for (DstoreConnection dstore : ds) {
+                // each dstore has timeout or should be total ???
+                String ack = dstore.await(this.timeout);
+                if (ack == null || !ack.equals("STORE_ACK " + filename)) {
+                    // log
+                }
+                dstore.resume();
+            }
+
+            c.dispatch("STORE_COMPLETE");
         }
 
-        c.dispatch("STORE_COMPLETE");
-        return true;
+        synchronized(this.indexLock) {
+            for (DstoreConnection dstore : ds) {
+                this.index.get(filename).add(dstore);
+            }
+        }
     }
 
     public Integer getTimeout() {

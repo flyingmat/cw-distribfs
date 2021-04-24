@@ -33,6 +33,10 @@ public class Client extends TCPClient {
                 } else {
                     // log idk
                 }
+            } else if (ps.length > 0 && ps[0].equals("ERROR_FILE_ALREADY_EXISTS")) {
+                System.out.println("(!) " + where);
+            } else if (ps.length > 0 && ps[0].equals("ERROR_NOT_ENOUGH_DSTORES")) {
+                System.out.println("(!) " + where);
             } else {
                 // log
                 System.out.println("(!) STORE_TO malformed");
