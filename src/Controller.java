@@ -1,4 +1,5 @@
 import java.util.*;
+import java.lang.Math.*;
 import java.net.*;
 
 public class Controller extends TCPServer {
@@ -50,13 +51,17 @@ public class Controller extends TCPServer {
         }).reduce(0, Integer::sum);
     }
 
-    public boolean store(String filename, Integer file_size) {
+    public boolean store(ClientConnection c, String filename, Integer file_size) {
         List<List<String>> lists = new ArrayList<List<String>>();
+        Map<List<String>, DstoreConnection> ld = new HashMap<>();
 
+        // get dstores' file lists
         for (DstoreConnection dstore : this.dstores) {
             List<String> list = dstore.getList();
             if (list != null) {
                 lists.add(list);
+                ld.put(list, dstore);
+
                 for (String s : list)
                     System.out.println(" list::" + s);
             } else {
@@ -65,18 +70,47 @@ public class Controller extends TCPServer {
         }
 
         if (lists.size() < this.R) {
-            // log, not enough dstores, but go ahead
+            // log, not enough dstores, STOP HERE
+            System.out.println("(!) Less than R dstores connected");
+            return false;
         }
 
+        // sort the file lists, lower total size first
         Collections.sort(
             lists,
             (l1, l2) -> Integer.compare(storageSize(l1), storageSize(l2))
         );
 
         for (List<String> l : lists) {
-            System.out.println(storageSize(l));
+            System.out.println(storageSize(l) + " " + ld.get(l).getPort());
         }
 
+        List<List<String>> rs = new ArrayList<>();
+
+        // take R lowest size lists and their dstores' ports
+        String r = "STORE_TO";
+        for (int i = 0; i < this.R; i++) {
+            r += " " + ld.get(lists.get(i)).getPort();
+            rs.add(lists.get(i));
+        }
+
+        for (List<String> l : rs) {
+            ld.get(l).hold();
+        }
+
+        System.out.println(r);
+        c.dispatch(r);
+
+        for (List<String> l : rs) {
+            // each dstore has timeout or should be total ???
+            String ack = ld.get(l).await(this.timeout);
+            if (ack == null || !ack.equals("STORE_ACK " + filename)) {
+                // log
+            }
+            ld.get(l).resume();
+        }
+
+        c.dispatch("STORE_COMPLETE");
         return true;
     }
 

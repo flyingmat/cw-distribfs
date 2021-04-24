@@ -12,11 +12,11 @@ public abstract class Connection extends TCPClient implements Runnable {
 
     protected abstract void processMessage(String msg);
 
-    protected void hold() {
+    public void hold() {
         this.consume = false;
     }
 
-    protected void resume() {
+    public void resume() {
         this.consume = true;
     }
 

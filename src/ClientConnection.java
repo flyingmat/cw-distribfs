@@ -11,6 +11,7 @@ public class ClientConnection extends Connection {
         this.fmsg = msg;
     }
 
+    @Override
     protected void processMessage(String msg) {
         System.out.println("[CLIENT] Received: " + msg);
 
@@ -20,12 +21,12 @@ public class ClientConnection extends Connection {
                 case "STORE":
                     if (ws.length == 3) {
                         try {
-                            controller.store(ws[1], Integer.parseInt(ws[2]));
+                            controller.store(this, ws[1], Integer.parseInt(ws[2]));
                         } catch (NumberFormatException e) {
-                            // log
+                            // log, message malformed, int not parsed
                         }
                     } else {
-                        // log
+                        // log, message malformed
                     }
                     break;
             }

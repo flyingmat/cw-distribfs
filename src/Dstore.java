@@ -8,7 +8,8 @@ public class Dstore extends TCPServer {
     private String file_folder;
     private TCPClient client;
 
-    private Map<String,Integer> files;
+    public DataConnection controller;
+    public Map<String,Integer> files;
 
     public Dstore(Integer port, Integer cport, Integer timeout, String file_folder) throws Exception {
         super(port);
@@ -19,7 +20,14 @@ public class Dstore extends TCPServer {
 
         new Thread(new Runnable() {
             public void run() {
-                start();
+                try {
+                    Socket controller = socket.accept();
+                    Dstore.this.controller = new DataConnection(Dstore.this, controller, Dstore.this.client.getSocketOut());
+                    new Thread(Dstore.this.controller).start();
+                    start();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }).start();
         this.client.dispatch("JOIN " + port);
@@ -28,7 +36,7 @@ public class Dstore extends TCPServer {
     @Override
     protected void onAccept(Socket socket) {
         try {
-            new Thread(new DataConnection(this, socket, this.client.getSocketOut())).start();
+            new Thread(new DataConnection(this, socket, socket)).start();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -41,6 +49,8 @@ public class Dstore extends TCPServer {
         files.put("aaa.txt", 987);
         if (this.file_folder.equals("abab")) {
             files.put("loool.java", 3675);
+        } else if (this.file_folder.equals("eee")) {
+            files.put("xd.class", 111);
         }
     }
 

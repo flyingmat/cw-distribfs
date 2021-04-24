@@ -1,10 +1,11 @@
+import java.util.concurrent.*;
 import java.io.*;
 import java.net.*;
 
 public class TCPClient {
 
-    private Socket ins;
-    private Socket outs;
+    protected Socket ins;
+    protected Socket outs;
 
     protected BufferedReader in;
     protected PrintWriter out;
@@ -31,6 +32,28 @@ public class TCPClient {
 
     public String await() throws Exception {
         return this.in.readLine();
+    }
+
+    public String await(Integer timeout) {
+        Callable<String> task = new Callable<String>() {
+            public String call() {
+                try {
+                    return await();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                return null;
+            }
+        };
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        Future<String> ack = executor.submit(task);
+        try {
+            String out = ack.get(timeout, TimeUnit.MILLISECONDS);
+            System.out.println("* ACK received: " + out);
+            return out;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public void dispatch(String msg) {

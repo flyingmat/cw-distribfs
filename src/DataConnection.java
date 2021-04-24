@@ -1,3 +1,4 @@
+import java.io.*;
 import java.net.*;
 
 public class DataConnection extends Connection {
@@ -9,8 +10,9 @@ public class DataConnection extends Connection {
         this.dstore = dstore;
     }
 
+    @Override
     protected void processMessage(String msg) {
-        System.out.println("[CONTROLLER] Received: " + msg);
+        System.out.println("[CONTROLLER/CLIENT] Received: " + msg);
         String[] ws = msg.split(" ");
         if (ws.length > 0) {
             switch (ws[0]) {
@@ -21,6 +23,36 @@ public class DataConnection extends Connection {
                         // log
                     }
                     break;
+                case "STORE":
+                    if (ws.length == 3) {
+                        try {
+                            Integer fs = Integer.parseInt(ws[2]);
+                            File outputFile = new File(ws[1]);
+
+                            hold();
+                            System.out.println("Sending ACK..");
+                            dispatch("ACK");
+                            System.out.println("Sent - Reading bytes...");
+
+                            // receive file contents
+                            byte[] contents = ins.getInputStream().readNBytes(fs);
+                            FileOutputStream outf = new FileOutputStream("dstore_" + outputFile);
+                            outf.write(contents);
+
+                            this.dstore.files.put(ws[1], fs);
+                            this.dstore.controller.dispatch("STORE_ACK " + ws[1]);
+
+                            resume();
+                        } catch (NumberFormatException e) {
+                            // malformed message ?
+                            e.printStackTrace();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    } else {
+                        // log
+                        System.out.println("(!) Malformed STORE");
+                    }
             }
         } else {
             // log

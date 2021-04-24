@@ -1,18 +1,20 @@
 import java.util.*;
-import java.util.concurrent.*;
 import java.net.*;
 
 public class DstoreConnection extends Connection {
 
     private Controller controller;
+    private Integer port;
     private String fmsg = "";
 
     public DstoreConnection(Controller controller, Socket ins, Integer port, String msg) throws Exception {
         super(ins, new Socket(ins.getInetAddress(), port));
         this.controller = controller;
+        this.port = port;
         this.fmsg = msg;
     }
 
+    @Override
     protected void processMessage(String msg) {
         System.out.println("[DSTORE] Received: " + msg);
         String[] ws = msg.split(" ");
@@ -36,34 +38,12 @@ public class DstoreConnection extends Connection {
         return lines;
     }
 
-    protected String waitForAck(String msg) {
-        Callable<String> task = new Callable<String>() {
-            public String call() {
-                try {
-                    return in.readLine();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                return null;
-            }
-        };
-        ExecutorService executor = Executors.newFixedThreadPool(1);
-        dispatch(msg);
-        Future<String> ack = executor.submit(task);
-        try {
-            String out = ack.get(this.controller.getTimeout(), TimeUnit.MILLISECONDS);
-            System.out.println("* ACK received!");
-            return out;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
     public List<String> getList() {
         hold();
         List<String> list = null;
-        String ack = waitForAck("LIST");
-        if (ack != null) {
+        dispatch("LIST");
+        String ack = await(this.controller.getTimeout());
+        if (ack != null && ack.equals("LIST BEGIN")) {
             list = linesUntil("LIST END");
         } else {
             // log
@@ -71,6 +51,10 @@ public class DstoreConnection extends Connection {
 
         resume();
         return list;
+    }
+
+    public Integer getPort() {
+        return this.port;
     }
 
     @Override

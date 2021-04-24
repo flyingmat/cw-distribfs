@@ -2,7 +2,7 @@ import java.net.*;
 
 public abstract class TCPServer {
 
-    private ServerSocket socket;
+    protected ServerSocket socket;
 
     public TCPServer(Integer port) throws Exception {
         this.socket = new ServerSocket(port);
