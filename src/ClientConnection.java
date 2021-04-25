@@ -24,9 +24,18 @@ public class ClientConnection extends Connection {
                             controller.store(this, ws[1], Integer.parseInt(ws[2]));
                         } catch (NumberFormatException e) {
                             // log, message malformed, int not parsed
+                            e.printStackTrace();
                         }
                     } else {
                         // log, message malformed
+                        System.out.println("STORE malformed ???");
+                    }
+                    break;
+                case "LOAD":
+                    if (ws.length == 2) {
+                        controller.load(this, ws[1], 0);
+                    } else {
+
                     }
                     break;
             }

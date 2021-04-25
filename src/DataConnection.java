@@ -53,6 +53,27 @@ public class DataConnection extends Connection {
                         // log
                         System.out.println("(!) Malformed STORE");
                     }
+                    break;
+                case "LOAD_DATA":
+                    if (ws.length == 2) {
+                        try {
+                            File inputFile = new File(this.dstore.getFileFolder() + "/" + ws[1]);
+                            if (!inputFile.isFile()) {
+                                close();
+                            } else {
+                                FileInputStream inf = new FileInputStream(inputFile);
+                                byte[] buf = new byte[1000];
+                                int buflen;
+                                while ((buflen = inf.read(buf)) != -1) {
+                                    outs.getOutputStream().write(buf,0,buflen);
+                                }
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    } else {
+
+                    }
             }
         } else {
             // log

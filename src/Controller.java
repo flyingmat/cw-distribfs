@@ -14,6 +14,7 @@ public class Controller extends TCPServer {
     private volatile List<ClientConnection> clients;
     private volatile List<DstoreConnection> dstores;
     private volatile Map<String, List<DstoreConnection>> index;
+    private volatile Map<String, Integer> sizes;
 
     public Controller(Integer cport, Integer R, Integer timeout, Integer rebalance_period) throws Exception {
         super(cport);
@@ -22,6 +23,7 @@ public class Controller extends TCPServer {
         this.clients = new ArrayList<ClientConnection>();
         this.dstores = new ArrayList<DstoreConnection>();
         this.index = new HashMap<String, List<DstoreConnection>>();
+        this.sizes = new HashMap<String, Integer>();
 
         new Thread(new Runnable() {
             public void run() {
@@ -52,25 +54,25 @@ public class Controller extends TCPServer {
     }
 
     public void store(ClientConnection c, String filename, Integer file_size) {
-        synchronized(this.indexLock) {
-            if (this.index.containsKey(filename)) {
-                // file already exists
-                c.dispatch("ERROR_FILE_ALREADY_EXISTS");
-                return;
-            } else {
-                this.index.put(filename, new ArrayList<DstoreConnection>());
-            }
-        }
-
         Map<DstoreConnection, Integer> lists = new HashMap<>();
 
         // get dstores' file lists
         synchronized(this.dstoreLock) {
             if (this.dstores.size() < this.R) {
                 // log, not enough dstores, STOP HERE
-                System.out.println("(!) Less than R dstores connected");
                 c.dispatch("ERROR_NOT_ENOUGH_DSTORES");
                 return;
+            }
+
+            synchronized(this.indexLock) {
+                if (this.index.containsKey(filename)) {
+                    // file already exists
+                    c.dispatch("ERROR_FILE_ALREADY_EXISTS");
+                    return;
+                } else {
+                    this.index.put(filename, new ArrayList<DstoreConnection>());
+                    this.sizes.put(filename, file_size);
+                }
             }
 
             for (DstoreConnection dstore : this.dstores) {
@@ -121,6 +123,28 @@ public class Controller extends TCPServer {
         synchronized(this.indexLock) {
             for (DstoreConnection dstore : ds) {
                 this.index.get(filename).add(dstore);
+            }
+        }
+    }
+
+    public void load(ClientConnection c, String filename, Integer i) {
+        synchronized(this.dstoreLock) {
+            if (this.dstores.size() < this.R) {
+                // log, not enough dstores, STOP HERE
+                c.dispatch("ERROR_NOT_ENOUGH_DSTORES");
+                return;
+            }
+        }
+
+        synchronized(this.indexLock) {
+            List<DstoreConnection> dstores = this.index.get(filename);
+            if (dstores == null) {
+                // file does not exist
+                c.dispatch("ERROR_FILE_DOES_NOT_EXIST");
+            } else if (i >= dstores.size()) {
+                c.dispatch("ERROR_LOAD");
+            } else {
+                c.dispatch("LOAD_FROM " + dstores.get(i).getPort() + " " + this.sizes.get(filename));
             }
         }
     }

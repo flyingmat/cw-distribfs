@@ -14,14 +14,17 @@ public class Client extends TCPClient {
     private void store(String msg) {
         dispatch(msg);
         String where = await(this.timeout);
-        System.out.println(" ::" + where);
         if (where != null) {
             String[] ps = where.split(" ");
             if (ps.length > 0 && ps[0].equals("STORE_TO")) {
                 for (int i = 1; i < ps.length; i++) {
                     try {
                         Integer port = Integer.parseInt(ps[i]);
-                        new Thread(new ClientDstoreOperation(port, this.timeout, ClientDstoreOperation.Operation.STORE, msg)).start();
+                        new Thread(new Runnable() {
+                            public void run() {
+                                ClientDstoreOperation.store(port, Client.this.timeout, msg);
+                            }
+                        }).start();
                     } catch (Exception e) {
                         // connection failed ?
                         e.printStackTrace();
@@ -47,12 +50,43 @@ public class Client extends TCPClient {
         }
     }
 
+    private void load(String msg) {
+        dispatch(msg);
+        String where = await(this.timeout);
+        if (where != null) {
+            String[] ps = where.split(" ");
+            if (ps.length > 0 && ps[0].equals("LOAD_FROM")) {
+                try {
+                    Integer port = Integer.parseInt(ps[1]);
+                    Integer size = Integer.parseInt(ps[2]);
+                    new Thread(new Runnable() {
+                        public void run() {
+                            ClientDstoreOperation.load(port, Client.this.timeout, msg.split(" ")[1], size);
+                        }
+                    }).start();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } else {
+                System.out.println("LOAD_FROM malformed ???");
+            }
+        } else {
+            System.out.println("NO ACK RECEIVED ???");
+        }
+    }
+
     public void exec(String msg) {
         String[] ws = msg.split(" ");
         if (ws.length > 0) {
             switch (ws[0]) {
                 case "STORE":
                     store(msg);
+                    break;
+                case "LOAD":
+                    load(msg);
+                    break;
+                default:
+                    System.out.println("(!) Unrecognized command");
                     break;
             }
         } else {
