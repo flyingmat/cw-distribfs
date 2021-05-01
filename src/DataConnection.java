@@ -38,6 +38,7 @@ public class DataConnection extends Connection {
                             byte[] contents = ins.getInputStream().readNBytes(fs);
                             FileOutputStream outf = new FileOutputStream(outputFile);
                             outf.write(contents);
+                            outf.close();
 
                             this.dstore.store(ws[1]);
                             this.dstore.getController().dispatch("STORE_ACK " + ws[1]);
@@ -67,6 +68,7 @@ public class DataConnection extends Connection {
                                 while ((buflen = inf.read(buf)) != -1) {
                                     outs.getOutputStream().write(buf,0,buflen);
                                 }
+                                inf.close();
                             }
                         } catch (Exception e) {
                             e.printStackTrace();

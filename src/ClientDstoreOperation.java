@@ -23,6 +23,7 @@ class ClientDstoreOperation {
                         c.getSocketOut().getOutputStream().write(buf,0,buflen);
                     }
 
+                    inf.close();
                     c.close();
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -65,6 +66,7 @@ class ClientDstoreOperation {
                 File outputFile = new File(filename);
                 FileOutputStream outf = new FileOutputStream(outputFile);
                 outf.write(contents);
+                outf.close();
                 return;
             } catch (Exception e) {
                 e.printStackTrace();
