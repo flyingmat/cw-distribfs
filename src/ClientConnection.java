@@ -4,6 +4,7 @@ public class ClientConnection extends Connection {
 
     private Controller controller;
     private String fmsg = "";
+    private int reload = 0;
 
     public ClientConnection(Controller controller, Socket ins, String msg) throws Exception {
         super(ins, ins);
@@ -13,7 +14,7 @@ public class ClientConnection extends Connection {
 
     @Override
     protected void processMessage(String msg) {
-        System.out.println("[CLIENT] Received: " + msg);
+        System.out.println(" [CLIENT] :: " + msg);
 
         String[] ws = msg.split(" ");
         if (ws.length > 0) {
@@ -34,6 +35,13 @@ public class ClientConnection extends Connection {
                 case "LOAD":
                     if (ws.length == 2) {
                         controller.load(this, ws[1], 0);
+                    } else {
+
+                    }
+                    break;
+                case "RELOAD":
+                    if (ws.length == 2) {
+                        controller.load(this, ws[1], reload++);
                     } else {
 
                     }

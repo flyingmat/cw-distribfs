@@ -12,7 +12,7 @@ class ClientDstoreOperation {
             String ack = c.await(timeout);
 
             if (ack != null && ack.equals("ACK")) {
-                System.out.println(" < " + ack);
+                System.out.println(" [DSTORE] :: " + ack);
 
                 String[] ws = msg.split(" ");
                 // send data

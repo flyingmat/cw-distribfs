@@ -19,8 +19,9 @@ public class Client extends TCPClient {
         if (where != null) {
             String[] ps = where.split(" ");
 
+            System.out.println(" [CONTROLLER] :: " + where);
+
             if (ps.length > 0 && ps[0].equals("STORE_TO")) {
-                System.out.println(" < " + where);
 
                 for (int i = 1; i < ps.length; i++) {
                     try {
@@ -36,8 +37,9 @@ public class Client extends TCPClient {
                     }
                 }
                 String complete = await(this.timeout);
+                System.out.println(" [CONTROLLER] :: " + complete);
                 if (complete != null && complete.equals("STORE_COMPLETE")) {
-                    System.out.println(" < " + complete);
+
                 } else {
                     // log idk
                 }

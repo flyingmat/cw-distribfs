@@ -16,7 +16,7 @@ public class DstoreConnection extends Connection {
 
     @Override
     protected void processMessage(String msg) {
-        System.out.println("[DSTORE] Received: " + msg);
+        System.out.println(" [DSTORE] :: " + msg);
         String[] ws = msg.split(" ");
         if (ws.length > 0) {
 
