@@ -12,6 +12,8 @@ public abstract class Connection extends TCPClient implements Runnable {
 
     protected abstract void processMessage(String msg);
 
+    protected abstract void onDisconnect();
+
     public void hold() {
         this.consume = false;
     }
@@ -27,7 +29,8 @@ public abstract class Connection extends TCPClient implements Runnable {
             do {
                 if (this.consume && super.in.ready()) {
                     msg = await();
-                    processMessage(msg);
+                    if (msg != null)
+                        processMessage(msg);
                 }
                 Thread.sleep(100);
             } while (msg != null);
@@ -37,5 +40,7 @@ public abstract class Connection extends TCPClient implements Runnable {
             // when client disconnects ?
             e.printStackTrace();
         }
+
+        onDisconnect();
     }
 }

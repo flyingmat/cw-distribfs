@@ -65,6 +65,8 @@ public class Client extends TCPClient {
         if (where != null) {
             String[] ps = where.split(" ");
 
+            System.out.println(" [CONTROLLER] :: " + where);
+
             if (ps.length > 0 && ps[0].equals("LOAD_FROM")) {
                 try {
                     Integer port = Integer.parseInt(ps[1]);

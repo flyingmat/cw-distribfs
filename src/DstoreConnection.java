@@ -25,6 +25,11 @@ public class DstoreConnection extends Connection {
         }
     }
 
+    @Override
+    protected void onDisconnect() {
+        this.controller.removeDstore(this);
+    }
+
     protected List<String> linesUntil(String exclusive) {
         List<String> lines = new ArrayList<String>();
         try {

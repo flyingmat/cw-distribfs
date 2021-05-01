@@ -45,12 +45,26 @@ public class Controller extends TCPServer {
         new Thread(c).start();
     }
 
+    public void removeClient(ClientConnection c) {
+        synchronized(this.clientLock) {
+            System.out.println("(i) Client disconnected");
+            this.clients.removeIf(t -> t.getSocketIn().getLocalPort() == c.getSocketIn().getLocalPort());
+        }
+    }
+
     public void addDstore(DstoreConnection c) {
         synchronized(this.dstoreLock) {
             System.out.println("(i) New dstore detected");
             this.dstores.add(c);
         }
         new Thread(c).start();
+    }
+
+    public void removeDstore(DstoreConnection c) {
+        synchronized(this.dstoreLock) {
+            System.out.println("(i) Dstore disconnected (" + c.getSocketIn().getLocalPort() + ")");
+            this.clients.removeIf(t -> t.getSocketIn().getLocalPort() == c.getSocketIn().getLocalPort());
+        }
     }
 
     public void store(ClientConnection c, String filename, Integer file_size) {
@@ -140,6 +154,7 @@ public class Controller extends TCPServer {
                     } else if (i >= dstores.size()) {
                         c.dispatch("ERROR_LOAD");
                     } else {
+                        System.out.println(" >> [CLIENT] " + "LOAD_FROM " + dstores.get(i).getPort() + " " + this.sizes.get(filename));
                         c.dispatch("LOAD_FROM " + dstores.get(i).getPort() + " " + this.sizes.get(filename));
                     }
                 }

@@ -53,6 +53,11 @@ public class ClientConnection extends Connection {
     }
 
     @Override
+    protected void onDisconnect() {
+        this.controller.removeClient(this);
+    }
+
+    @Override
     public void run() {
         processMessage(this.fmsg);
         super.run();

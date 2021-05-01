@@ -81,4 +81,7 @@ public class DataConnection extends Connection {
             // log
         }
     }
+
+    @Override
+    protected void onDisconnect() {}
 }
