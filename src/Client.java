@@ -13,10 +13,15 @@ public class Client extends TCPClient {
 
     private void store(String msg) {
         dispatch(msg);
+
         String where = await(this.timeout);
+
         if (where != null) {
             String[] ps = where.split(" ");
+
             if (ps.length > 0 && ps[0].equals("STORE_TO")) {
+                System.out.println(" < " + where);
+
                 for (int i = 1; i < ps.length; i++) {
                     try {
                         Integer port = Integer.parseInt(ps[i]);
@@ -32,7 +37,7 @@ public class Client extends TCPClient {
                 }
                 String complete = await(this.timeout);
                 if (complete != null && complete.equals("STORE_COMPLETE")) {
-
+                    System.out.println(" < " + complete);
                 } else {
                     // log idk
                 }
@@ -42,19 +47,22 @@ public class Client extends TCPClient {
                 System.out.println("(!) " + where);
             } else {
                 // log
-                System.out.println("(!) STORE_TO malformed");
+                System.out.println("(!) STORE_TO malformed (" + where + ")");
             }
         } else {
             // log
-            System.out.println("(!) No ACK or malformed ACK received");
+            System.out.println("(!) No ACK received ? (" + where + ")");
         }
     }
 
     private void load(String msg) {
         dispatch(msg);
+
         String where = await(this.timeout);
+
         if (where != null) {
             String[] ps = where.split(" ");
+
             if (ps.length > 0 && ps[0].equals("LOAD_FROM")) {
                 try {
                     Integer port = Integer.parseInt(ps[1]);

@@ -54,7 +54,17 @@ public class Controller extends TCPServer {
     }
 
     public void store(ClientConnection c, String filename, Integer file_size) {
-        Map<DstoreConnection, Integer> lists = new HashMap<>();
+
+        synchronized(this.indexLock) {
+            if (this.index.containsKey(filename)) {
+                // file already exists
+                c.dispatch("ERROR_FILE_ALREADY_EXISTS");
+                return;
+            } else {
+                this.index.put(filename, new ArrayList<DstoreConnection>());
+                this.sizes.put(filename, file_size);
+            }
+        }
 
         // get dstores' file lists
         synchronized(this.dstoreLock) {
@@ -63,41 +73,18 @@ public class Controller extends TCPServer {
                 c.dispatch("ERROR_NOT_ENOUGH_DSTORES");
                 return;
             }
-
-            synchronized(this.indexLock) {
-                if (this.index.containsKey(filename)) {
-                    // file already exists
-                    c.dispatch("ERROR_FILE_ALREADY_EXISTS");
-                    return;
-                } else {
-                    this.index.put(filename, new ArrayList<DstoreConnection>());
-                    this.sizes.put(filename, file_size);
-                }
-            }
-
-            for (DstoreConnection dstore : this.dstores) {
-                List<String> list = dstore.getList();
-                if (list != null) {
-                    lists.put(dstore, list.size());
-                    System.out.println(Arrays.toString(list.toArray()));
-                } else {
-                    // no ack, no list returned, idk
-                }
-            }
         }
 
-        if (lists.size() < this.R) {
-            // log, not enough lists received, continue
+        List<DstoreConnection> ds = new ArrayList<>();
+        synchronized(this.dstoreLock) {
+            Collections.shuffle(this.dstores);
+            ds = this.dstores.subList(0, this.R);
         }
-
-        List<DstoreConnection> ds = new ArrayList<>(lists.keySet());
-        Collections.sort(ds, (d1, d2) -> Integer.compare(lists.get(d1), lists.get(d2)));
-        ds.subList(this.R, ds.size()).clear();
 
         // take R lowest size lists and their dstores' ports
         String r = "STORE_TO";
-        for (int i = 0; i < this.R; i++) {
-            r += " " + ds.get(i).getPort();
+        for (DstoreConnection dstore : ds) {
+            r += " " + dstore.getPort();
         }
 
         synchronized(this.storeLock) {
@@ -108,16 +95,32 @@ public class Controller extends TCPServer {
             System.out.println(r);
             c.dispatch(r);
 
+            boolean complete = true;
             for (DstoreConnection dstore : ds) {
                 // each dstore has timeout or should be total ???
                 String ack = dstore.await(this.timeout);
+
                 if (ack == null || !ack.equals("STORE_ACK " + filename)) {
-                    // log
+                    System.out.println("STORE_ACK not received ??");
+
+                    synchronized(this.indexLock) {
+                        this.index.remove(filename);
+                    }
+
+                    complete = false;
+
+                    break;
                 }
+            }
+
+            for (DstoreConnection dstore : ds) {
                 dstore.resume();
             }
 
-            c.dispatch("STORE_COMPLETE");
+            if (complete)
+                c.dispatch("STORE_COMPLETE");
+            else
+                return;
         }
 
         synchronized(this.indexLock) {

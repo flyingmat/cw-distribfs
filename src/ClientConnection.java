@@ -24,7 +24,7 @@ public class ClientConnection extends Connection {
                             controller.store(this, ws[1], Integer.parseInt(ws[2]));
                         } catch (NumberFormatException e) {
                             // log, message malformed, int not parsed
-                            e.printStackTrace();
+                            System.out.println("STORE file_size malformed ???");
                         }
                     } else {
                         // log, message malformed

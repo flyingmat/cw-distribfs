@@ -35,25 +35,18 @@ public class TCPClient {
     }
 
     public String await(Integer timeout) {
-        Callable<String> task = new Callable<String>() {
-            public String call() {
-                try {
-                    return await();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                return null;
-            }
-        };
-        ExecutorService executor = Executors.newFixedThreadPool(1);
-        Future<String> ack = executor.submit(task);
+        String msg = null;
+
         try {
-            String out = ack.get(timeout, TimeUnit.MILLISECONDS);
-            System.out.println("* ACK received: " + out);
-            return out;
-        } catch (Exception e) {
-            return null;
-        }
+            this.ins.setSoTimeout(timeout);
+            msg = await();
+        } catch (Exception e) {}
+
+        try {
+            this.ins.setSoTimeout(0);
+        } catch (Exception e) {}
+
+        return msg;
     }
 
     public void dispatch(String msg) {

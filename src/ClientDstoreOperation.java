@@ -12,6 +12,8 @@ class ClientDstoreOperation {
             String ack = c.await(timeout);
 
             if (ack != null && ack.equals("ACK")) {
+                System.out.println(" < " + ack);
+
                 String[] ws = msg.split(" ");
                 // send data
                 try {
