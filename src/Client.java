@@ -73,17 +73,21 @@ public class Client extends TCPClient {
                     Integer size = Integer.parseInt(ps[2]);
                     new Thread(new Runnable() {
                         public void run() {
-                            ClientDstoreOperation.load(port, Client.this.timeout, msg.split(" ")[1], size);
+                            ClientDstoreOperation.load(Client.this, port, Client.this.timeout, msg.split(" ")[1], size);
                         }
                     }).start();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+            } else if (ps.length > 0 && ps[0].equals("ERROR_FILE_DOES_NOT_EXIST")) {
+                System.out.println("(!) " + where);
+            } else if (ps.length > 0 && ps[0].equals("ERROR_NOT_ENOUGH_DSTORES")) {
+                System.out.println("(!) " + where);
             } else {
-                System.out.println("LOAD_FROM malformed ???");
+                System.out.println("(!) LOAD_FROM malformed (" + where + ")");
             }
         } else {
-            System.out.println("NO ACK RECEIVED ???");
+            System.out.println("NO ACK RECEIVED ? (" + where + ")");
         }
     }
 

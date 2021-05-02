@@ -35,7 +35,26 @@ class ClientDstoreOperation {
         }
     }
 
-    public static void load(Integer port, Integer timeout, String filename, Integer size) {
+    public static void reload(Client cc, Integer timeout, String filename, Integer size) {
+        cc.dispatch("RELOAD " + filename);
+        String where = cc.await(timeout);
+
+        if (where != null) {
+            String[] ps = where.split(" ");
+            System.out.println(" [CONTROLLER] :: " + where);
+            if (ps.length > 0 && ps[0].equals("LOAD_FROM")) {
+                try {
+                    load(cc, Integer.parseInt(ps[1]), timeout, filename, size);
+                } catch (NumberFormatException e ) {
+                    reload(cc, timeout, filename, size);
+                }
+            } else if (ps.length == 1 && ps[0].equals("ERROR_LOAD")) {
+                return;
+            }
+        }
+    }
+
+    public static void load(Client cc, Integer port, Integer timeout, String filename, Integer size) {
         try {
             TCPClient c = new TCPClient("127.0.0.1", port);
             c.getSocketIn().setSoTimeout(timeout);
@@ -52,7 +71,7 @@ class ClientDstoreOperation {
             outf.close();
             c.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            reload(cc, timeout, filename, size);
         }
     }
 }

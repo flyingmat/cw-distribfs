@@ -1,10 +1,11 @@
+import java.util.*;
 import java.net.*;
 
 public class ClientConnection extends Connection {
 
     private Controller controller;
     private String fmsg = "";
-    private int reload = 0;
+    private Map<String, Integer> reload = new HashMap<>();
 
     public ClientConnection(Controller controller, Socket ins, String msg) throws Exception {
         super(ins, ins);
@@ -34,6 +35,7 @@ public class ClientConnection extends Connection {
                     break;
                 case "LOAD":
                     if (ws.length == 2) {
+                        reload.put(ws[1], 0);
                         controller.load(this, ws[1], 0);
                     } else {
 
@@ -41,7 +43,12 @@ public class ClientConnection extends Connection {
                     break;
                 case "RELOAD":
                     if (ws.length == 2) {
-                        controller.load(this, ws[1], reload++);
+                        if (reload.containsKey(ws[1])) {
+                            reload.put(ws[1], reload.get(ws[1]) + 1);
+                            controller.load(this, ws[1], reload.get(ws[1]));
+                        } else {
+
+                        }
                     } else {
 
                     }

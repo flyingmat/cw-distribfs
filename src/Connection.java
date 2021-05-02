@@ -41,6 +41,7 @@ public abstract class Connection extends TCPClient implements Runnable {
             e.printStackTrace();
         }
 
+        // never reaches here ...
         onDisconnect();
     }
 }

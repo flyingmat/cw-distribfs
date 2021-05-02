@@ -55,7 +55,12 @@ public class Controller extends TCPServer {
     public void addDstore(DstoreConnection c) {
         synchronized(this.dstoreLock) {
             System.out.println("(i) New dstore detected");
+            this.dstores.removeIf(t -> t.getPort().equals(c.getPort()));
             this.dstores.add(c);
+        }
+        synchronized(this.indexLock) {
+            this.index.forEach((key, value) -> value.removeIf(t -> t.getPort().equals(c.getPort())));
+            //this.index.forEach((key, value) -> System.out.println(key + " " + value.size()));
         }
         new Thread(c).start();
     }
@@ -70,7 +75,7 @@ public class Controller extends TCPServer {
     public void store(ClientConnection c, String filename, Integer file_size) {
 
         synchronized(this.indexLock) {
-            if (this.index.containsKey(filename)) {
+            if (this.index.containsKey(filename) && !this.index.get(filename).isEmpty()) {
                 // file already exists
                 c.dispatch("ERROR_FILE_ALREADY_EXISTS");
                 return;
@@ -111,10 +116,6 @@ public class Controller extends TCPServer {
                     if (ack == null || !ack.equals("STORE_ACK " + filename)) {
                         System.out.println("STORE_ACK not received ??");
 
-                        synchronized(this.indexLock) {
-                            this.index.remove(filename);
-                        }
-
                         complete = false;
 
                         break;
@@ -125,15 +126,19 @@ public class Controller extends TCPServer {
                     dstore.resume();
                 }
 
-                if (complete)
-                    c.dispatch("STORE_COMPLETE");
-                else
-                    return;
-
-                synchronized(this.indexLock) {
-                    for (DstoreConnection dstore : ds) {
-                        this.index.get(filename).add(dstore);
+                if (complete) {
+                    synchronized(this.indexLock) {
+                        for (DstoreConnection dstore : ds) {
+                            this.index.get(filename).add(dstore);
+                        }
                     }
+                    c.dispatch("STORE_COMPLETE");
+                }
+                else {
+                    synchronized(this.indexLock) {
+                        this.index.remove(filename);
+                    }
+                    return;
                 }
             }
         }
@@ -148,7 +153,7 @@ public class Controller extends TCPServer {
             } else {
                 synchronized(this.indexLock) {
                     List<DstoreConnection> dstores = this.index.get(filename);
-                    if (dstores == null) {
+                    if (dstores == null || dstores.isEmpty()) {
                         // file does not exist
                         c.dispatch("ERROR_FILE_DOES_NOT_EXIST");
                     } else if (i >= dstores.size()) {
