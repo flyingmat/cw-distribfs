@@ -60,6 +60,10 @@ public class Controller extends TCPServer {
         }
         synchronized(this.indexLock) {
             this.index.forEach((key, value) -> value.removeIf(t -> t.getPort().equals(c.getPort())));
+            for (String key : this.index.keySet()) {
+                if (this.index.get(key).isEmpty())
+                    this.index.remove(key);
+            }
             //this.index.forEach((key, value) -> System.out.println(key + " " + value.size()));
         }
         new Thread(c).start();
