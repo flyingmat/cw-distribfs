@@ -79,7 +79,7 @@ public class Controller extends TCPServer {
     public void store(ClientConnection c, String filename, Integer file_size) {
 
         synchronized(this.indexLock) {
-            if (this.index.containsKey(filename) && !this.index.get(filename).isEmpty()) {
+            if (this.index.containsKey(filename)) {
                 // file already exists
                 c.dispatch("ERROR_FILE_ALREADY_EXISTS");
                 return;
