@@ -91,6 +91,18 @@ public class Client extends TCPClient {
         }
     }
 
+    private void remove(String msg) {
+        dispatch(msg);
+
+        String ack = await(this.timeout);
+
+        if (ack != null) {
+            System.out.println(" [CONTROLLER :: " + ack);
+        } else {
+            System.out.println("NO ACK RECEIVED ? (" + ack + ")");
+        }
+    }
+
     public void exec(String msg) {
         String[] ws = msg.split(" ");
         if (ws.length > 0) {
@@ -100,6 +112,9 @@ public class Client extends TCPClient {
                     break;
                 case "LOAD":
                     load(msg);
+                    break;
+                case "REMOVE":
+                    remove(msg);
                     break;
                 default:
                     System.out.println("(!) Unrecognized command");

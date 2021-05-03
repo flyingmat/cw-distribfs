@@ -76,6 +76,18 @@ public class DataConnection extends Connection {
                     } else {
 
                     }
+                    break;
+                case "REMOVE":
+                    if (ws.length == 2) {
+                        File file = new File(this.dstore.getFileFolder() + "/" + ws[1]);
+                        if (file.isFile()) {
+                            file.delete();
+                            this.dstore.getController().dispatch("REMOVE_ACK " + ws[1]);
+                        } else {
+                            this.dstore.getController().dispatch("ERROR_FILE_DOES_NOT_EXIST " + ws[1]);
+                        }
+                    }
+                    break;
             }
         } else {
             // log

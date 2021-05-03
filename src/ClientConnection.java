@@ -53,6 +53,11 @@ public class ClientConnection extends Connection {
 
                     }
                     break;
+                case "REMOVE":
+                    if (ws.length == 2) {
+                        controller.remove(this, ws[1]);
+                    }
+                    break;
             }
         } else {
             // log

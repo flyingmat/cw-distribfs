@@ -78,71 +78,65 @@ public class Controller extends TCPServer {
 
     public void store(ClientConnection c, String filename, Integer file_size) {
 
-        synchronized(this.indexLock) {
-            if (this.index.containsKey(filename)) {
-                // file already exists
-                c.dispatch("ERROR_FILE_ALREADY_EXISTS");
-                return;
-            } else {
-                this.index.put(filename, new ArrayList<DstoreConnection>());
-                this.sizes.put(filename, file_size);
-            }
-        }
-
         synchronized(this.dstoreLock) {
             if (this.dstores.size() < this.R) {
                 // log, not enough dstores, STOP HERE
                 c.dispatch("ERROR_NOT_ENOUGH_DSTORES");
                 return;
             } else {
-                Collections.shuffle(this.dstores);
-                List<DstoreConnection> ds = this.dstores.subList(0, this.R);
-
-                // take R lowest size lists and their dstores' ports
-                String r = "STORE_TO";
-                for (DstoreConnection dstore : ds) {
-                    r += " " + dstore.getPort();
-                }
-
-                for (DstoreConnection dstore : ds) {
-                    dstore.hold();
-                }
-
-                System.out.println(" >> [CLIENT] " + r);
-                c.dispatch(r);
-
-                boolean complete = true;
-                for (DstoreConnection dstore : ds) {
-                    // each dstore has timeout or should be total ???
-                    String ack = dstore.await(this.timeout);
-                    System.out.println(" [DSTORE] :: " + ack);
-
-                    if (ack == null || !ack.equals("STORE_ACK " + filename)) {
-                        System.out.println("STORE_ACK not received ??");
-
-                        complete = false;
-
-                        break;
+                synchronized(this.indexLock) {
+                    if (this.index.containsKey(filename)) {
+                        // file already exists
+                        c.dispatch("ERROR_FILE_ALREADY_EXISTS");
+                        return;
+                    } else {
+                        this.index.put(filename, new ArrayList<DstoreConnection>());
+                        this.sizes.put(filename, file_size);
                     }
-                }
 
-                for (DstoreConnection dstore : ds) {
-                    dstore.resume();
-                }
+                    Collections.shuffle(this.dstores);
+                    List<DstoreConnection> ds = this.dstores.subList(0, this.R);
 
-                if (complete) {
-                    synchronized(this.indexLock) {
+                    // take R lowest size lists and their dstores' ports
+                    String r = "STORE_TO";
+                    for (DstoreConnection dstore : ds)
+                        r += " " + dstore.getPort();
+
+                    for (DstoreConnection dstore : ds)
+                        dstore.hold();
+
+                    System.out.println(" >> [CLIENT] " + r);
+                    c.dispatch(r);
+
+                    boolean complete = true;
+                    for (DstoreConnection dstore : ds) {
+                        // each dstore has timeout or should be total ???
+                        String ack = dstore.await(this.timeout);
+                        System.out.println(" [DSTORE] :: " + ack);
+
+                        if (ack == null || !ack.equals("STORE_ACK " + filename)) {
+                            System.out.println("STORE_ACK not received ??");
+
+                            complete = false;
+
+                            break;
+                        }
+                    }
+
+                    for (DstoreConnection dstore : ds) {
+                        dstore.resume();
+                    }
+
+                    if (complete) {
                         for (DstoreConnection dstore : ds) {
                             this.index.get(filename).add(dstore);
                         }
+                        c.dispatch("STORE_COMPLETE");
                     }
-                    c.dispatch("STORE_COMPLETE");
-                }
-                else {
-                    synchronized(this.indexLock) {
+                    else {
                         this.index.remove(filename);
+                        return;
                     }
-                    return;
                 }
             }
         }
@@ -157,7 +151,7 @@ public class Controller extends TCPServer {
             } else {
                 synchronized(this.indexLock) {
                     List<DstoreConnection> dstores = this.index.get(filename);
-                    if (dstores == null || dstores.isEmpty()) {
+                    if (dstores == null) {
                         // file does not exist
                         c.dispatch("ERROR_FILE_DOES_NOT_EXIST");
                     } else if (i >= dstores.size()) {
@@ -165,6 +159,52 @@ public class Controller extends TCPServer {
                     } else {
                         System.out.println(" >> [CLIENT] " + "LOAD_FROM " + dstores.get(i).getPort() + " " + this.sizes.get(filename));
                         c.dispatch("LOAD_FROM " + dstores.get(i).getPort() + " " + this.sizes.get(filename));
+                    }
+                }
+            }
+        }
+    }
+
+    public void remove(ClientConnection c, String filename) {
+        synchronized(this.dstoreLock) {
+            if (this.dstores.size() < this.R) {
+                // log, not enough dstores, STOP HERE
+                c.dispatch("ERROR_NOT_ENOUGH_DSTORES");
+                return;
+            } else {
+                synchronized(this.indexLock) {
+                    List<DstoreConnection> dstores = this.index.get(filename);
+                    if (dstores == null) {
+                        // file does not exist
+                        c.dispatch("ERROR_FILE_DOES_NOT_EXIST");
+                    } else {
+                        for (DstoreConnection dstore : dstores) {
+                            dstore.hold();
+
+                            System.out.println(" >> [DSTORE] REMOVE " + filename);
+                            dstore.dispatch("REMOVE " + filename);
+                            String ack = dstore.await(this.timeout);
+
+                            if (ack != null) {
+                                if (ack.equals("REMOVE_ACK " + filename))
+                                    System.out.println(" [DSTORE] :: " + ack);
+                                else {
+                                    String[] ws = ack.split(" ");
+                                    if (ws.length == 2 && ws[0].equals("ERROR_FILE_DOES_NOT_EXIST"))
+                                        System.out.println("(!) " + ack);
+                                    else
+                                        System.out.println("(!) REMOVE_ACK malformed (" + ack + ")");
+                                }
+                            } else {
+                                // timeout reached
+                            }
+
+                            dstore.resume();
+                        }
+
+                        this.index.remove(filename);
+
+                        c.dispatch("REMOVE_COMPLETE");
                     }
                 }
             }
