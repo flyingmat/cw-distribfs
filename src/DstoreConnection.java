@@ -1,27 +1,34 @@
 import java.util.*;
+import java.util.concurrent.*;
 import java.net.*;
 
 public class DstoreConnection extends Connection {
 
     private final Controller controller;
+
     private final Integer port;
     private final String fmsg;
 
+    private final Set<String> files;
+
     public DstoreConnection(Controller controller, Socket ins, Integer port, String msg) throws Exception {
         super(ins, new Socket(ins.getInetAddress(), port));
+
         this.controller = controller;
+
         this.port = port;
         this.fmsg = msg;
+
+        this.files = ConcurrentHashMap.newKeySet();
     }
 
     @Override
     protected void processMessage(String msg) {
         System.out.println(" [DSTORE] :: " + msg);
         String[] ws = msg.split(" ");
-        if (ws.length > 0) {
-
-        } else {
-            // log
+        if (ws[0].equals("STORE_ACK")) {
+            if (ws.length == 2)
+                this.controller.getIndex().addStoreAck(ws[1]);
         }
     }
 
@@ -60,6 +67,10 @@ public class DstoreConnection extends Connection {
 
     public Integer getPort() {
         return this.port;
+    }
+
+    public Integer getFileAmount() {
+        return this.files.size();
     }
 
     @Override

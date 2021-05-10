@@ -1,21 +1,26 @@
 import java.util.*;
+import java.util.concurrent.*;
 import java.io.*;
 import java.net.*;
 
 public class Dstore extends TCPServer {
 
-    private final Object lock = new Object();
-
+    private final Integer port;
     private final String file_folder;
-    private final TCPClient client;
 
+    private final TCPClient client;
     private DataConnection controller;
-    private volatile List<String> files;
+
+    private final Set<String> files;
 
     public Dstore(Integer port, Integer cport, Integer timeout, String file_folder) throws Exception {
         super(port);
+        this.port = port;
         this.file_folder = file_folder;
+
         this.client = new TCPClient("127.0.0.1", cport);
+
+        this.files = ConcurrentHashMap.newKeySet();
 
         init();
 
@@ -44,7 +49,6 @@ public class Dstore extends TCPServer {
     }
 
     private void init() {
-        this.files = new ArrayList<String>();
         File folder = new File(this.file_folder);
         if (!folder.isDirectory()) {
             folder.mkdirs();
@@ -54,13 +58,17 @@ public class Dstore extends TCPServer {
         }
     }
 
-    public String list() { synchronized(this.lock) {
-        return "LIST BEGIN\n" + String.join("\n", this.files) + "\nLIST END";
-    }}
+    public String list() {
+        return "";//"LIST BEGIN\n" + String.join("\n", this.files) + "\nLIST END";
+    }
 
-    public void store(String filename) { synchronized(this.lock) {
+    public void store(String filename) {
         this.files.add(filename);
-    }}
+    }
+
+    public Integer getPort() {
+        return this.port;
+    }
 
     public String getFileFolder() {
         return this.file_folder;
@@ -68,6 +76,10 @@ public class Dstore extends TCPServer {
 
     public DataConnection getController() {
         return this.controller;
+    }
+
+    public Integer getFileAmount() {
+        return this.files.size();
     }
 
     public static void main(String[] args) {
