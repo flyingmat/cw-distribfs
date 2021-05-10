@@ -6,7 +6,7 @@ public class Index {
 
     private final Controller controller;
 
-    private final HashMap<String, Set<DstoreConnection>> index;
+    private final HashMap<String, List<DstoreConnection>> index;
     private final HashMap<String, Integer> sizes;
 
     private final ConcurrentHashMap<String, CountDownLatch> storeAcks;
@@ -17,7 +17,7 @@ public class Index {
     public Index(Controller controller) {
         this.controller = controller;
 
-        this.index = new HashMap<String, Set<DstoreConnection>>();
+        this.index = new HashMap<String, List<DstoreConnection>>();
         this.sizes = new HashMap<String, Integer>();
 
         this.storeAcks = new ConcurrentHashMap<String, CountDownLatch>();
@@ -42,7 +42,7 @@ public class Index {
         return true;
     }
 
-    public void endStore(String filename, Set<DstoreConnection> ds, boolean success) {
+    public void endStore(String filename, List<DstoreConnection> ds, boolean success) {
         this.lock.writeLock().lock();
         if (success)
             this.index.put(filename, ds);
@@ -50,6 +50,37 @@ public class Index {
             this.index.remove(filename);
             this.sizes.remove(filename);
         }
+        this.lock.writeLock().unlock();
+
+        if (success) {
+            for (DstoreConnection d : ds)
+                d.store(filename);
+        }
+    }
+
+    public List<DstoreConnection> beginRemove(String filename) {
+        this.lock.readLock().lock();
+        List<DstoreConnection> ds = this.index.get(filename);
+        this.lock.readLock().unlock();
+
+        if (ds != null) {
+            for (DstoreConnection d : ds)
+                d.remove(filename);
+                
+            this.lock.writeLock().lock();
+            this.index.put(filename, null);
+            this.lock.writeLock().unlock();
+
+            this.removeAcks.put(filename, new CountDownLatch(this.controller.getR()));
+        }
+
+        return ds;
+    }
+
+    public void endRemove(String filename) {
+        this.lock.writeLock().lock();
+        this.index.remove(filename);
+        this.sizes.remove(filename);
         this.lock.writeLock().unlock();
     }
 
@@ -77,6 +108,14 @@ public class Index {
     public boolean awaitStore(String filename) {
         try {
             return this.storeAcks.get(filename).await(this.controller.getTimeout(), TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean awaitRemove(String filename) {
+        try {
+            return this.removeAcks.get(filename).await(this.controller.getTimeout(), TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             return false;
         }

@@ -26,9 +26,15 @@ public class DstoreConnection extends Connection {
     protected void processMessage(String msg) {
         System.out.println(" [DSTORE] :: " + msg);
         String[] ws = msg.split(" ");
-        if (ws[0].equals("STORE_ACK")) {
-            if (ws.length == 2)
-                this.controller.getIndex().addStoreAck(ws[1]);
+        switch (ws[0]) {
+            case "STORE_ACK":
+                if (ws.length == 2)
+                    this.controller.getIndex().addStoreAck(ws[1]);
+                break;
+            case "REMOVE_ACK":
+                if (ws.length == 2)
+                    this.controller.getIndex().addRemoveAck(ws[1]);
+                break;
         }
     }
 
@@ -63,6 +69,14 @@ public class DstoreConnection extends Connection {
 
         resume();
         return list;
+    }
+
+    public void store(String filename) {
+        this.files.add(filename);
+    }
+
+    public void remove(String filename) {
+        this.files.remove(filename);
     }
 
     public Integer getPort() {

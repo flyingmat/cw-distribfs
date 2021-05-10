@@ -75,26 +75,24 @@ public class Controller extends TCPServer {
 
     public void store(ClientConnection c, String filename, Integer size) {
 
-        Set<DstoreConnection> ds;
+        List<DstoreConnection> ds;
 
         synchronized(this.dstoreLock) {
             if (this.dstores.size() < this.R) {
                 // log, not enough dstores, STOP HERE
                 c.dispatch("ERROR_NOT_ENOUGH_DSTORES");
-                System.out.println("ERROR_NOT_ENOUGH_DSTORES");
                 return;
             } else {
-                ds = new HashSet<DstoreConnection>(this.dstores);
+                ds = new ArrayList<DstoreConnection>(this.dstores);
             }
         }
 
-        if (!index.beginStore(filename, size)) {
+        if (!this.index.beginStore(filename, size)) {
             c.dispatch("ERROR_FILE_ALREADY_EXISTS");
-            System.out.println("ERROR_FILE_ALREADY_EXISTS");
             return;
         }
 
-        ds = ds.stream().sorted((d1, d2) -> Integer.compare(d1.getFileAmount(), d2.getFileAmount())).limit(this.R).collect(Collectors.toSet());
+        ds = ds.stream().sorted((d1, d2) -> Integer.compare(d1.getFileAmount(), d2.getFileAmount())).limit(this.R).collect(Collectors.toList());
 
         String r = "STORE_TO";
         for (DstoreConnection d : ds)
@@ -103,11 +101,12 @@ public class Controller extends TCPServer {
         c.dispatch(r);
 
         boolean complete = this.index.awaitStore(filename);
-        index.endStore(filename, ds, complete);
         System.out.println(complete);
 
         if (complete)
             c.dispatch("STORE_COMPLETE");
+
+        this.index.endStore(filename, ds, complete);
     }
 
     public void load(ClientConnection c, String filename, Integer i) {
@@ -119,16 +118,44 @@ public class Controller extends TCPServer {
             }
         }
 
-        List<DstoreConnection> ds = index.getFileDstores(filename);
+        List<DstoreConnection> ds = this.index.getFileDstores(filename);
         if (ds == null)
             c.dispatch("ERROR_FILE_DOES_NOT_EXIST");
         else if (i >= ds.size())
             c.dispatch("ERROR_LOAD");
         else
-            c.dispatch("LOAD_FROM " + ds.get(i).getPort() + " " + index.getFileSize(filename));
+            c.dispatch("LOAD_FROM " + ds.get(i).getPort() + " " + this.index.getFileSize(filename));
     }
 
     public void remove(ClientConnection c, String filename) {
+        synchronized(this.dstoreLock) {
+            if (this.dstores.size() < this.R) {
+                // log, not enough dstores, STOP HERE
+                c.dispatch("ERROR_NOT_ENOUGH_DSTORES");
+                return;
+            }
+        }
+
+        List<DstoreConnection> ds = this.index.beginRemove(filename);
+        if (ds == null) {
+            c.dispatch("ERROR_FILE_DOES_NOT_EXIST");
+            return;
+        }
+
+        for (DstoreConnection d : ds) {
+            new Thread(new Runnable() {
+                public void run() {
+                    d.dispatch("REMOVE " + filename);
+                }
+            }).start();
+        }
+
+        boolean complete = this.index.awaitRemove(filename);
+        this.index.endRemove(filename);
+        c.dispatch("REMOVE_COMPLETE");
+
+
+
         // synchronized(this.dstoreLock) {
         //     if (this.dstores.size() < this.R) {
         //         // log, not enough dstores, STOP HERE
