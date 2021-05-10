@@ -18,10 +18,13 @@ public class Controller extends TCPServer {
 
     public Controller(Integer cport, Integer R, Integer timeout, Integer rebalance_period) throws Exception {
         super(cport);
+
         this.R = R;
         this.timeout = timeout;
+
         this.clients = new ArrayList<ClientConnection>();
         this.dstores = new ArrayList<DstoreConnection>();
+
         this.index = new HashMap<String, List<DstoreConnection>>();
         this.sizes = new HashMap<String, Integer>();
 
