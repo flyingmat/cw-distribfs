@@ -29,7 +29,6 @@ public class DataConnection extends Connection {
                             Integer fs = Integer.parseInt(ws[2]);
                             File outputFile = new File(this.dstore.getFileFolder() + "/" + ws[1]);
 
-                            hold();
                             System.out.println("Sending ACK..");
                             dispatch("ACK");
                             System.out.println("Sent - Reading bytes...");
@@ -42,8 +41,6 @@ public class DataConnection extends Connection {
 
                             this.dstore.store(ws[1]);
                             this.dstore.getController().dispatch("STORE_ACK " + ws[1]);
-
-                            resume();
                         } catch (NumberFormatException e) {
                             // malformed message ?
                             e.printStackTrace();

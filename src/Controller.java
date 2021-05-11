@@ -55,22 +55,16 @@ public class Controller extends TCPServer {
             System.out.println("(i) New dstore detected - " + this.dstores.size());
         }
 
-
-        // synchronized(this.indexLock) {
-        //     this.index.forEach((key, value) -> value.removeIf(t -> t.getPort().equals(c.getPort())));
-        //     for (String key : this.index.keySet()) {
-        //         if (this.index.get(key).isEmpty())
-        //             this.index.remove(key);
-        //     }
-        //     //this.index.forEach((key, value) -> System.out.println(key + " " + value.size()));
-        // }
-
         new Thread(c).start();
     }
 
     public void removeDstore(DstoreConnection c) {
-        System.out.println("(i) Dstore disconnected (" + c.getPort() + ")");
-        this.dstores.remove(c);
+        synchronized(this.dstoreLock) {
+            this.dstores.remove(c);
+            System.out.println("(i) Dstore disconnected (" + c.getPort() + ")");
+        }
+
+        this.index.removeDstore(c);
     }
 
     public void store(ClientConnection c, String filename, Integer size) {
@@ -83,7 +77,9 @@ public class Controller extends TCPServer {
                 c.dispatch("ERROR_NOT_ENOUGH_DSTORES");
                 return;
             } else {
-                ds = new ArrayList<DstoreConnection>(this.dstores);
+                ds = this.dstores.stream().sorted(
+                    (d1, d2) -> Integer.compare(d1.getFileAmount(), d2.getFileAmount())
+                ).limit(this.R).collect(Collectors.toList());
             }
         }
 
@@ -92,8 +88,6 @@ public class Controller extends TCPServer {
             return;
         }
 
-        ds = ds.stream().sorted((d1, d2) -> Integer.compare(d1.getFileAmount(), d2.getFileAmount())).limit(this.R).collect(Collectors.toList());
-
         String r = "STORE_TO";
         for (DstoreConnection d : ds)
             r += " " + d.getPort();
@@ -101,10 +95,10 @@ public class Controller extends TCPServer {
         c.dispatch(r);
 
         boolean complete = this.index.awaitStore(filename);
-        System.out.println(complete);
 
-        if (complete)
+        if (complete) {
             c.dispatch("STORE_COMPLETE");
+        }
 
         this.index.endStore(filename, ds, complete);
     }
@@ -137,68 +131,31 @@ public class Controller extends TCPServer {
         }
 
         List<DstoreConnection> ds = this.index.beginRemove(filename);
-        if (ds == null) {
+        if (ds == null || (ds != null && ds.isEmpty())) {
             c.dispatch("ERROR_FILE_DOES_NOT_EXIST");
             return;
         }
 
         for (DstoreConnection d : ds) {
-            new Thread(new Runnable() {
-                public void run() {
-                    d.dispatch("REMOVE " + filename);
-                }
-            }).start();
+            d.dispatch("REMOVE " + filename);
         }
 
         boolean complete = this.index.awaitRemove(filename);
-        this.index.endRemove(filename);
         c.dispatch("REMOVE_COMPLETE");
+        System.out.println(" >> [CLIENT] REMOVE_COMPLETE");
+        this.index.endRemove(filename);
+    }
 
+    public void list(ClientConnection c) {
+        synchronized(this.dstoreLock) {
+            if (this.dstores.size() < this.R) {
+                // log, not enough dstores, STOP HERE
+                c.dispatch("ERROR_NOT_ENOUGH_DSTORES");
+                return;
+            }
+        }
 
-
-        // synchronized(this.dstoreLock) {
-        //     if (this.dstores.size() < this.R) {
-        //         // log, not enough dstores, STOP HERE
-        //         c.dispatch("ERROR_NOT_ENOUGH_DSTORES");
-        //         return;
-        //     } else {
-        //         synchronized(this.indexLock) {
-        //             List<DstoreConnection> dstores = this.index.get(filename);
-        //             if (dstores == null) {
-        //                 // file does not exist
-        //                 c.dispatch("ERROR_FILE_DOES_NOT_EXIST");
-        //             } else {
-        //                 for (DstoreConnection dstore : dstores) {
-        //                     dstore.hold();
-        //
-        //                     System.out.println(" >> [DSTORE] REMOVE " + filename);
-        //                     dstore.dispatch("REMOVE " + filename);
-        //                     String ack = dstore.await(this.timeout);
-        //
-        //                     if (ack != null) {
-        //                         if (ack.equals("REMOVE_ACK " + filename))
-        //                             System.out.println(" [DSTORE] :: " + ack);
-        //                         else {
-        //                             String[] ws = ack.split(" ");
-        //                             if (ws.length == 2 && ws[0].equals("ERROR_FILE_DOES_NOT_EXIST"))
-        //                                 System.out.println("(!) " + ack);
-        //                             else
-        //                                 System.out.println("(!) REMOVE_ACK malformed (" + ack + ")");
-        //                         }
-        //                     } else {
-        //                         // timeout reached
-        //                     }
-        //
-        //                     dstore.resume();
-        //                 }
-        //
-        //                 this.index.remove(filename);
-        //
-        //                 c.dispatch("REMOVE_COMPLETE");
-        //             }
-        //         }
-        //     }
-        // }
+        c.dispatch("LIST " + String.join(" ", this.index.fileList()));
     }
 
     public Integer getR() {

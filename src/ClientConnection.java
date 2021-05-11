@@ -18,49 +18,50 @@ public class ClientConnection extends Connection {
         System.out.println(" [CLIENT] :: " + msg);
 
         String[] ws = msg.split(" ");
-        if (ws.length > 0) {
-            switch (ws[0]) {
-                case "STORE":
-                    if (ws.length == 3) {
-                        try {
-                            controller.store(this, ws[1], Integer.parseInt(ws[2]));
-                        } catch (NumberFormatException e) {
-                            // log, message malformed, int not parsed
-                            System.out.println("STORE file_size malformed ???");
-                        }
-                    } else {
-                        // log, message malformed
-                        System.out.println("STORE malformed ???");
+        switch (ws[0]) {
+            case "STORE":
+                if (ws.length == 3) {
+                    try {
+                        controller.store(this, ws[1], Integer.parseInt(ws[2]));
+                    } catch (NumberFormatException e) {
+                        // log, message malformed, int not parsed
+                        System.out.println("STORE file_size malformed ???");
                     }
-                    break;
-                case "LOAD":
-                    if (ws.length == 2) {
-                        reload.put(ws[1], 0);
-                        controller.load(this, ws[1], 0);
-                    } else {
+                } else {
+                    // log, message malformed
+                    System.out.println("STORE malformed ???");
+                }
+                break;
+            case "LOAD":
+                if (ws.length == 2) {
+                    reload.put(ws[1], 0);
+                    controller.load(this, ws[1], 0);
+                } else {
 
-                    }
-                    break;
-                case "RELOAD":
-                    if (ws.length == 2) {
-                        if (reload.containsKey(ws[1])) {
-                            reload.put(ws[1], reload.get(ws[1]) + 1);
-                            controller.load(this, ws[1], reload.get(ws[1]));
-                        } else {
-
-                        }
+                }
+                break;
+            case "RELOAD":
+                if (ws.length == 2) {
+                    if (reload.containsKey(ws[1])) {
+                        reload.put(ws[1], reload.get(ws[1]) + 1);
+                        controller.load(this, ws[1], reload.get(ws[1]));
                     } else {
 
                     }
-                    break;
-                case "REMOVE":
-                    if (ws.length == 2) {
-                        controller.remove(this, ws[1]);
-                    }
-                    break;
-            }
-        } else {
-            // log
+                } else {
+
+                }
+                break;
+            case "REMOVE":
+                if (ws.length == 2) {
+                    controller.remove(this, ws[1]);
+                }
+                break;
+            case "LIST":
+                if (ws.length == 1) {
+                    controller.list(this);
+                }
+                break;
         }
     }
 

@@ -43,33 +43,33 @@ public class DstoreConnection extends Connection {
         this.controller.removeDstore(this);
     }
 
-    protected List<String> linesUntil(String exclusive) {
-        List<String> lines = new ArrayList<String>();
-        try {
-            String line;
-            while (!(line = await()).equals(exclusive))
-                lines.add(line);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    // protected List<String> linesUntil(String exclusive) {
+    //     List<String> lines = new ArrayList<String>();
+    //     try {
+    //         String line;
+    //         while (!(line = await()).equals(exclusive))
+    //             lines.add(line);
+    //     } catch (Exception e) {
+    //         e.printStackTrace();
+    //     }
+    //
+    //     return lines;
+    // }
 
-        return lines;
-    }
-
-    public List<String> getList() {
-        hold();
-        List<String> list = null;
-        dispatch("LIST");
-        String ack = await(this.controller.getTimeout());
-        if (ack != null && ack.equals("LIST BEGIN")) {
-            list = linesUntil("LIST END");
-        } else {
-            // log
-        }
-
-        resume();
-        return list;
-    }
+    // public List<String> getList() {
+    //     hold();
+    //     List<String> list = null;
+    //     dispatch("LIST");
+    //     String ack = await(this.controller.getTimeout());
+    //     if (ack != null && ack.equals("LIST BEGIN")) {
+    //         list = linesUntil("LIST END");
+    //     } else {
+    //         // log
+    //     }
+    //
+    //     resume();
+    //     return list;
+    // }
 
     public void store(String filename) {
         this.files.add(filename);

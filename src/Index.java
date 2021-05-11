@@ -27,15 +27,21 @@ public class Index {
     }
 
     public boolean beginStore(String filename, Integer size) {
-        this.lock.readLock().lock();
-        if (this.index.containsKey(filename))
-            return false;
-        this.lock.readLock().unlock();
+        try {
+            this.lock.readLock().lock();
+            if (this.index.containsKey(filename))
+                return false;
+        } finally {
+            this.lock.readLock().unlock();
+        }
 
-        this.lock.writeLock().lock();
-        this.index.put(filename, null);
-        this.sizes.put(filename, size);
-        this.lock.writeLock().unlock();
+        try {
+            this.lock.writeLock().lock();
+            this.index.put(filename, null);
+            this.sizes.put(filename, size);
+        } finally {
+            this.lock.writeLock().unlock();
+        }
 
         this.storeAcks.put(filename, new CountDownLatch(this.controller.getR()));
 
@@ -43,54 +49,71 @@ public class Index {
     }
 
     public void endStore(String filename, List<DstoreConnection> ds, boolean success) {
-        this.lock.writeLock().lock();
-        if (success)
-            this.index.put(filename, ds);
-        else {
-            this.index.remove(filename);
-            this.sizes.remove(filename);
-        }
-        this.lock.writeLock().unlock();
-
         if (success) {
-            for (DstoreConnection d : ds)
-                d.store(filename);
+            try {
+                this.lock.writeLock().lock();
+                this.index.put(filename, ds);
+            } finally {
+                this.lock.writeLock().unlock();
+                for (DstoreConnection d : ds)
+                    d.store(filename);
+            }
+        } else {
+            try {
+                this.lock.writeLock().lock();
+                this.index.remove(filename);
+                this.sizes.remove(filename);
+            } finally {
+                this.lock.writeLock().unlock();
+            }
         }
     }
 
     public List<DstoreConnection> beginRemove(String filename) {
-        this.lock.readLock().lock();
-        List<DstoreConnection> ds = this.index.get(filename);
-        this.lock.readLock().unlock();
+        List<DstoreConnection> ds = null;
+        try {
+            this.lock.readLock().lock();
+            ds = this.index.get(filename);
+        } finally {
+            this.lock.readLock().unlock();
+        }
 
         if (ds != null) {
-            for (DstoreConnection d : ds)
-                d.remove(filename);
-                
-            this.lock.writeLock().lock();
-            this.index.put(filename, null);
-            this.lock.writeLock().unlock();
-
-            this.removeAcks.put(filename, new CountDownLatch(this.controller.getR()));
+            try {
+                this.lock.writeLock().lock();
+                this.index.put(filename, null);
+            } finally {
+                this.lock.writeLock().unlock();
+                for (DstoreConnection d : ds)
+                    d.remove(filename);
+            }
         }
+
+        this.removeAcks.put(filename, new CountDownLatch(this.controller.getR()));
 
         return ds;
     }
 
     public void endRemove(String filename) {
-        this.lock.writeLock().lock();
-        this.index.remove(filename);
-        this.sizes.remove(filename);
-        this.lock.writeLock().unlock();
+        try {
+            this.lock.writeLock().lock();
+            this.index.remove(filename);
+            this.sizes.remove(filename);
+        } finally {
+            this.lock.writeLock().unlock();
+        }
     }
 
     public List<DstoreConnection> getFileDstores(String filename) {
         List<DstoreConnection> ds = null;
-        this.lock.readLock().lock();
-        if (this.index.get(filename) != null)
-            ds = new ArrayList<DstoreConnection>(this.index.get(filename));
-        this.lock.readLock().unlock();
-        return ds;
+        try {
+            this.lock.readLock().lock();
+            if (this.index.get(filename) != null)
+                ds = new ArrayList<DstoreConnection>(this.index.get(filename));
+            return ds;
+        } finally {
+            this.lock.readLock().unlock();
+        }
     }
 
     public Integer getFileSize(String filename) {
@@ -98,11 +121,13 @@ public class Index {
     }
 
     public void addStoreAck(String filename) {
-        this.storeAcks.get(filename).countDown();
+        if (this.storeAcks.containsKey(filename))
+            this.storeAcks.get(filename).countDown();
     }
 
     public void addRemoveAck(String filename) {
-        this.removeAcks.get(filename).countDown();
+        if (this.removeAcks.containsKey(filename))
+            this.removeAcks.get(filename).countDown();
     }
 
     public boolean awaitStore(String filename) {
@@ -118,6 +143,32 @@ public class Index {
             return this.removeAcks.get(filename).await(this.controller.getTimeout(), TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    public void removeDstore(DstoreConnection c) {
+        try {
+            this.lock.writeLock().lock();
+            this.index.forEach((key, value) -> value.removeIf(t -> t.getPort().equals(c.getPort())));
+
+            Set<String> files = new HashSet<String>(this.index.keySet());
+            for (String f : files) {
+                if (this.index.get(f).isEmpty()) {
+                    this.index.remove(f);
+                    this.sizes.remove(f);
+                }
+            }
+        } finally {
+            this.lock.writeLock().unlock();
+        }
+    }
+
+    public Set<String> fileList() {
+        try {
+            this.lock.readLock().lock();
+            return this.index.keySet();
+        } finally {
+            this.lock.readLock().unlock();
         }
     }
 }
