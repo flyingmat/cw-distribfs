@@ -1,1 +1,6 @@
 build/
+*.log
+*.jar
+*.class
+test/test_download/
+test/test_upload/

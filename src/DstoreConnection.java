@@ -24,16 +24,19 @@ public class DstoreConnection extends Connection {
 
     @Override
     protected void processMessage(String msg) {
-        System.out.println(" [DSTORE] :: " + msg);
         String[] ws = msg.split(" ");
         switch (ws[0]) {
-            case "STORE_ACK":
+            case Protocol.STORE_ACK_TOKEN:
                 if (ws.length == 2)
                     this.controller.getIndex().addStoreAck(ws[1]);
+                else
+                    System.out.println("(?) " + Protocol.STORE_ACK_TOKEN + " MALFORMED");
                 break;
-            case "REMOVE_ACK":
+            case Protocol.REMOVE_ACK_TOKEN:
                 if (ws.length == 2)
                     this.controller.getIndex().addRemoveAck(ws[1]);
+                else
+                    System.out.println("(?) " + Protocol.REMOVE_ACK_TOKEN + " MALFORMED");
                 break;
         }
     }
@@ -41,6 +44,20 @@ public class DstoreConnection extends Connection {
     @Override
     protected void onDisconnect() {
         this.controller.removeDstore(this);
+    }
+
+    @Override
+    public String await() throws Exception {
+        String msg = super.await();
+        if (msg != null)
+            ControllerLogger.getInstance().messageReceived(this.ins, msg);
+        return msg;
+    }
+
+    @Override
+    public void dispatch(String msg) {
+        super.dispatch(msg);
+        ControllerLogger.getInstance().messageSent(this.outs, msg);
     }
 
     // protected List<String> linesUntil(String exclusive) {

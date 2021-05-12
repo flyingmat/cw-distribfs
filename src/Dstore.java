@@ -23,6 +23,7 @@ public class Dstore extends TCPServer {
         this.files = ConcurrentHashMap.newKeySet();
 
         init();
+        DstoreLogger.init(Logger.LoggingType.ON_FILE_AND_TERMINAL, this.port);
 
         new Thread(new Runnable() {
             public void run() {
@@ -32,7 +33,7 @@ public class Dstore extends TCPServer {
                     new Thread(Dstore.this.controller).start();
                     start();
                 } catch (Exception e) {
-                    System.out.println("Error: unable to accept controller connection\n    (!) " + e.getMessage());
+                    System.out.println("Error: unable to accept connection\n    (!) " + e.getMessage());
                 }
             }
         }).start();

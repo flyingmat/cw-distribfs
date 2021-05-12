@@ -14,9 +14,8 @@ public abstract class TCPServer {
         while (true) {
             try {
                 onAccept(this.socket.accept());
-                System.out.println("(i) New connection");
             } catch (Exception e) {
-                System.out.println("Error: unable to accept client connection\n    (!) " + e.getMessage());
+                System.out.println("Error: unable to accept connection\n    (!) " + e.getMessage());
             }
         }
     }
