@@ -38,6 +38,7 @@ public class Dstore extends TCPServer {
             }
         }).start();
         this.client.dispatch("JOIN " + port);
+        DstoreLogger.getInstance().messageSent(this.client.getSocketOut(), "JOIN " + port);
     }
 
     @Override
